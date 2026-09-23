@@ -87,12 +87,3 @@ which a better policy does not speed up.
 * **Group composition.** Partial credit makes zero-variance groups rare;
   `remove_constant_reward_groups` drops them, and the asynchronous off-policy path keeps sampling
   while an optimizer step runs, which matters when one rollout takes minutes.
-
-## Future work
-
-Ground truth is treated here as correct. ELT-Bench-Verified (arXiv 2603.29399) reports that about
-1.2% of ground-truth columns admit more than one defensible answer and are not removed from the
-original benchmark. Under evaluation that is a small constant error; under RL it hands out reward
-no policy can earn reliably, the regime studied in *Noisy Data is Destructive to RLVR* (arXiv
-2603.16140). The next step is to grade against the verified subset and compare training under the
-original and verified ground truth, measuring how much of this environment's learning signal is noise.

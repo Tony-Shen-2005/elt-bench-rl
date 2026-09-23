@@ -29,28 +29,23 @@ column_credit * f + (1 - column_credit) * 1[f = 1]
 an interpolation between the official all-or-nothing rule (`column_credit = 0`) and pure linear
 credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
-**Dense, because GRPO needs within-group variance.** Under `binary` nearly every early rollout
-scores 0, the advantage is zero across the group, and an episode that failed on one column type is
-indistinguishable from one that never ran `terraform init`. Every point in `staged` is still
-execution derived.
+**Dense, because GRPO needs within-group variance.** Under `binary` early rollouts all score 0, the
+advantage vanishes, and missing one column looks the same as never running `terraform init`.
 
-**A premium on finishing.** A model with five of six columns right is not 83% of a pipeline, it is
-unusable, and the benchmark scores it 0. Under pure linear credit the last column is worth no more
-than the first, so the best strategy is to farm the cheap columns of every model and finish none.
-The completion term keeps one finished model ahead of two half-finished ones.
+**A premium on finishing.** A model with five of six columns right is unusable and the benchmark
+scores it 0. Under pure linear credit the cheapest strategy is to farm easy columns everywhere and
+finish nothing; the completion term keeps one finished model ahead of two half-finished ones.
 
-**Stage 2 gated on stage 1.** Ungated, the cheapest path to the transformation share is to skip the
-pipeline: the agent can read the sources through `bash` and write the final tables directly. The
-gate also imposes a curriculum, since the larger share only opens once the data is really loaded.
+**Stage 2 gated on stage 1.** Ungated, the cheapest path to the transformation share is to read the
+sources through `bash` and write the final tables directly, skipping the pipeline. The gate is also
+a curriculum: the larger share opens only once the data is really loaded.
 
-**Outcome, not process.** Per-turn rewards would have to be read out of tool output, which the
-policy writes and can therefore shape. Warehouse state at submission is the one signal the policy
-can only move by doing the work.
+**Outcome, not process.** Per-turn rewards would be read out of tool output, which the policy writes
+and can shape. Warehouse state at submission moves only by doing the work.
 
 **Full credit means the official evaluator passes.** The comparator reproduces `check_corretness`
-and `sort_by_keys`, and a test asserts agreement with `eva_stage2.py` table by table, so the reward
-cannot drift from the benchmark it claims to optimize. `task_success` and `srdt_fraction` are logged
-every step, so a run trained on `staged` is still reported in the benchmark's own terms.
+and `sort_by_keys`, and a test asserts agreement with `eva_stage2.py` table by table. `task_success`
+and `srdt_fraction` are logged every step, so a `staged` run is still reported in benchmark terms.
 
 **Integrity violations zero the reward** rather than reduce it, so cheating plus good work never
 outscores honest work.

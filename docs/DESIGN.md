@@ -195,16 +195,7 @@ and on Airbyte sync jobs, which take minutes and are not made faster by a better
   the asynchronous off-policy path in tinker-cookbook lets sampling continue while an optimizer
   step runs, which matters when a single rollout takes minutes.
 
-## 6. Verification status and limitations
-
-Passing: the credential-free integration tests, including the scripted oracle and the four
-scripted failure and hacking policies, and comparator parity with the official evaluator.
-
-Not yet run: a credentialed rollout against a real Snowflake and Airbyte deployment, and a
-Tinker optimization step. Both are needed before any efficiency number in this document can be
-replaced with a measurement.
-
-## 7. Future work
+## 6. Future work
 
 The ground truth is treated here as correct. ELT-Bench-Verified (arXiv 2603.29399) reports that
 roughly 1.2% of ground-truth columns are ambiguous, admitting more than one defensible answer,

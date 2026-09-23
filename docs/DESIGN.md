@@ -29,26 +29,27 @@ column_credit * f + (1 - column_credit) * 1[f = 1]
 an interpolation between the official all-or-nothing rule (`column_credit = 0`) and pure linear
 credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
-**Dense, because GRPO needs within-group variance.** Under `binary` early rollouts all score 0, the
-advantage vanishes, and missing one column looks the same as never running `terraform init`.
+**Dense, because GRPO needs within-group variance.** The advantage is measured against the group
+mean, so a group whose rollouts all score the same contributes no gradient. Under `binary` that is
+most early groups, and worse, an episode that loaded every source and missed one column type is
+indistinguishable from one that never ran `terraform init`. `staged` separates them while keeping
+every point it hands out derived from warehouse state.
 
-**A premium on finishing.** A model with five of six columns right is unusable and the benchmark
-scores it 0. Under pure linear credit the cheapest strategy is to farm easy columns everywhere and
-finish nothing; the completion term keeps one finished model ahead of two half-finished ones.
+**The completion term is what keeps partial credit honest.** A data model with five of six columns
+right is not 83% of a pipeline, it is unusable, which is why the benchmark scores it 0. But under
+all-or-nothing credit there is no signal between "nothing" and "done". `column_credit` interpolates
+between the two: the linear part pays for progress inside a model, the `1[f = 1]` part pays a bonus
+only for a finished one. Farming the easy columns of every model then never beats finishing one.
 
-**Stage 2 gated on stage 1.** Ungated, the cheapest path to the transformation share is to read the
-sources through `bash` and write the final tables directly, skipping the pipeline. The gate is also
-a curriculum: the larger share opens only once the data is really loaded.
+**Gating stage 2 on stage 1 is both a defence and a curriculum.** Ungated, the cheapest route to the
+larger share of the reward is to skip the pipeline entirely: read the sources with `bash` and write
+the final tables by hand. The gate removes that route, and as a side effect orders the task, since
+the transformation reward only becomes reachable once the data is really loaded.
 
-**Outcome, not process.** Per-turn rewards would be read out of tool output, which the policy writes
-and can shape. Warehouse state at submission moves only by doing the work.
-
-**Full credit means the official evaluator passes.** The comparator reproduces `check_corretness`
-and `sort_by_keys`, and a test asserts agreement with `eva_stage2.py` table by table. `task_success`
-and `srdt_fraction` are logged every step, so a `staged` run is still reported in benchmark terms.
-
-**Integrity violations zero the reward** rather than reduce it, so cheating plus good work never
-outscores honest work.
+**Full credit is defined by the official evaluator, not by us.** The comparator reproduces
+`check_corretness` and `sort_by_keys`, and a test asserts it agrees with `eva_stage2.py` table by
+table; `task_success` and `srdt_fraction` are logged every step. The shaping changes where the
+gradient comes from, never what counts as solved.
 
 ## Environment
 
@@ -73,7 +74,8 @@ outscores honest work.
 ## Reward hacking
 
 Under RL, anything required only by the prompt will eventually be skipped, so prompt-level
-requirements became environment-level checks.
+requirements became environment-level checks. A detected violation zeroes the reward rather than
+reducing it, so cheating plus good work never outscores honest work.
 
 | Shortcut | Handling |
 | --- | --- |

@@ -121,6 +121,61 @@ logged each step, and the grade report of every rollout is written under
 | `sync_delay_seconds` | `0` | Delay between Airbyte sync triggers (ELT-Bench uses 60 for Databricks) |
 | `lora_rank`, `learning_rate`, `kl_penalty_coef`, `max_steps_off_policy` | | Passed through to tinker-cookbook |
 
+## How it fits together
+
+### ELT-Bench inputs
+
+`load_eltbench_tasks(repo, gt_dir, names)` in `task.py` reads one `ELTTask` per benchmark
+task from a checkout plus the downloaded ground truth. The two halves of a task never mix:
+the agent-visible half is written into the sandbox workspace at the start of an episode, the
+grader-only half stays on the host.
+
+| From the benchmark | Read by | Used as |
+| --- | --- | --- |
+| `elt-bench/<warehouse>/<task>/config.yaml` | `task.py` | Agent-visible. The destination block is stripped on load; `stacks.py` injects the Airbyte credentials and `Destination.agent_config()` writes this rollout's own database back in |
+| `elt-bench/<warehouse>/<task>/data_model.yaml` | `task.py` | Agent-visible, the transformation spec |
+| `elt-bench/schemas/<task>/*.csv` | `task.py` | Agent-visible, source table schemas |
+| `documentation/*.md` | `task.py` | Agent-visible, Airbyte provider documentation |
+| `setup/main.tf`, `setup/check_job_status.py` | `task.py` | Agent-visible, copied into the workspace as the benchmark does |
+| `evaluation/table.json` | `grading.py` | Grader-only, expected raw-table row counts (stage 1) |
+| `evaluation/sql/<task>/*.sql` | `grading.py` | Grader-only, rewritten to this rollout's namespace by `Destination.rewrite_eval_sql()` (stage 2) |
+| `evaluation/sort_key.json` | `grading.py` | Grader-only, sort keys used before comparison |
+| `ground_truth/gt_<warehouse>/<task>/*.csv` | `grading.py` | Grader-only, the expected data models |
+
+A task defined outside the benchmark uses `load_local_task(dir)`, which expects the same two
+halves in a directory layout documented in its docstring. `tests/fixtures/tiny_shop` is an
+example.
+
+### tinker-cookbook interfaces
+
+| Cookbook interface | Implemented by | What it does here |
+| --- | --- | --- |
+| `RLDatasetBuilder` | `ELTDatasetBuilder` (`env.py`) | Builds the train dataset, and an eval dataset when `eval_tasks` is set |
+| `RLDataset` | `ELTDataset` | `get_batch(i)` returns `groups_per_batch` group builders, cycling through the tasks |
+| `EnvGroupBuilder` | `ELTEnvGroupBuilder` | `make_envs()` provisions `group_size` independent episodes of one task, `cleanup()` tears their resources down |
+| `Env` | `build_agent_tool_env(...)` | The multi-turn tool loop. This repo supplies the renderer, the tools, the initial messages, the reward function and the terminal conditions |
+| `@tool` / `ToolResult` | `ELTTools` (`tools.py`) | `bash`, `sql`, `submit`. `submit` returns `should_stop=True` |
+| reward function | `ELTReward` (`env.py`) | `async (history) -> (reward, metrics)`, called once when the episode ends |
+| sandbox interface | `DockerSandbox`, `LocalSandbox` (`sandbox.py`) | `workspace_path`, `run_command`, `read_file`, `write_file`, `kill_background`, `cleanup`, `send_heartbeat` |
+| `rl.train.Config` / `main` | `train.py` | The training entry point |
+| `do_single_rollout`, `TinkerTokenCompleter` | `rollout.py` | Sampling and grading without an optimizer step |
+
+### The Destination contract
+
+One subclass per warehouse, registered in `destinations/__init__.py`.
+
+| Method | Contract |
+| --- | --- |
+| `provision(task, rollout_id, from_snapshot)` | Create an empty namespace owned by this rollout, or clone the task's post-EL snapshot |
+| `teardown(ns)` | Drop it |
+| `agent_config(ns)` | The destination block merged into the agent's `config.yaml` |
+| `prompt_notes(ns)` | Warehouse-specific lines appended to the instruction |
+| `query(ns, sql, as_agent)` | Run SQL, as the agent's scoped credential or as the grader |
+| `table_row_counts(ns)`, `table_columns(ns, table)` | What grading reads |
+| `normalize(ident)`, `qualify(ns, table)` | Identifier case folding and fully qualified names |
+| `rewrite_eval_sql(ns, sql)` | Provided by the base class, override only for a different SQL dialect |
+| `has_snapshot`, `save_snapshot` | Optional, enables `transform_only` |
+
 ## Layout
 
 ```

@@ -1,0 +1,8 @@
+{
+  "customer_ltv": [
+    "customer_id"
+  ],
+  "product_sales": [
+    "product_id"
+  ]
+}

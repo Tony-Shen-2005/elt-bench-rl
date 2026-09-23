@@ -1,0 +1,37 @@
+[project]
+name = "elt-bench-rl"
+version = "0.1.0"
+description = "An end-to-end RLVR environment for ELT-Bench, built on tinker-cookbook"
+readme = "README.md"
+authors = [
+    { name = "Tonyshen", email = "264782028+Tony-Shen-2005@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.5.5",
+    "pandas>=3.0.6",
+    "pyyaml>=6.0.3",
+    "tinker-cookbook>=0.5.7",
+]
+
+[project.optional-dependencies]
+snowflake = [
+    "snowflake-connector-python>=4.7.5",
+]
+
+[tool.uv.build-backend]
+module-name = "elt_rl"
+
+[build-system]
+requires = ["uv_build>=0.11.2,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]

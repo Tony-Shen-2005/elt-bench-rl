@@ -1,0 +1,25 @@
+models:
+  - name: customer_ltv
+    description: One row per customer (including customers without orders) with lifetime order statistics.
+    columns:
+      - name: customer_id
+        description: Customer identifier.
+      - name: customer_name
+        description: First name and last name separated by a single space.
+      - name: n_orders
+        description: Number of orders placed by the customer; 0 if none.
+      - name: total_spent
+        description: Sum over the customer's orders of quantity times the product's unit price. Orders of products with unknown price contribute nothing. 0 if no orders.
+      - name: first_order_date
+        description: Date (YYYY-MM-DD) of the customer's earliest order; NULL if no orders.
+  - name: product_sales
+    description: One row per product with units sold and a sales rank.
+    columns:
+      - name: product_id
+        description: Product identifier.
+      - name: product_name
+        description: Product name.
+      - name: units_sold
+        description: Total quantity sold across all orders; 0 if never ordered.
+      - name: sales_rank
+        description: Rank by units_sold descending, ties broken by product_id ascending; starts at 1.

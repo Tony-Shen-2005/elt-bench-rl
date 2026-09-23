@@ -1,0 +1,9 @@
+customer_id,customer_name,n_orders,total_spent,first_order_date
+2,Alan Turing,3,30.0,2026-02-12
+3,Grace Hopper,4,65.5,2026-04-17
+4,Edsger Dijkstra,2,14.5,2026-02-20
+5,Barbara Liskov,3,62.5,2026-02-22
+7,Frances Allen,1,12.5,2026-07-26
+8,John Backus,0,0.0,
+1,Ada Lovelace,4,66.25,2026-03-13
+6,Donald Knuth,3,42.5,2026-03-14

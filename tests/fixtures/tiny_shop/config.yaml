@@ -1,0 +1,8 @@
+task: tiny_shop
+sources:
+  flat_files:
+    - {format: csv, path: sources/customers.csv, table: customers}
+  object_store:
+    - {format: jsonl, path: sources/orders.jsonl, table: orders}
+  sqlite:
+    - {path: sources/shop.sqlite, tables: [products]}

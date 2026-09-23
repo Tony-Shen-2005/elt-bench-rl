@@ -1,0 +1,6 @@
+product_id,product_name,units_sold,sales_rank
+3,gizmo,17.0,1
+2,gadget,15.0,2
+4,doohickey,15.0,3
+1,widget,14.0,4
+5,sprocket,0.0,5

@@ -28,8 +28,7 @@ s = column_credit * f + (1 - column_credit) * 1[f = 1]      s = 0 if the row cou
 T = mean of s over the models of the task
 ```
 
-`s` interpolates between the official all-or-nothing rule (`column_credit = 0`) and pure linear
-credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
+Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
 The benchmark's own verdict on a task is one bit. `staged` exists to make that bit trainable
 without changing what it means, and four decisions follow from that.
@@ -38,10 +37,10 @@ without changing what it means, and four decisions follow from that.
 mean, so a group scoring all zeros contributes no gradient. Under `binary` that is most early
 groups, and an episode that missed one column type looks like one that never ran `terraform init`.
 
-**The completion term is what keeps partial credit honest.** All-or-nothing credit gives no signal
-between nothing and done; pure linear credit makes farming the easy columns of every model beat
-finishing one. `column_credit` interpolates, paying for progress but reserving a bonus for a model
-that is actually finished.
+**The completion term is what keeps partial credit honest.** Both endpoints of `column_credit` fail:
+at 0, the official all-or-nothing rule gives no signal between nothing and done; at 1, pure linear
+credit makes farming the easy columns of every model beat finishing one. In between, the linear part
+pays for progress and the `1[f = 1]` part reserves a bonus for a model that is actually finished.
 
 **Gating stage 2 on stage 1 is both a defence and a curriculum.** Ungated, the cheapest route to the
 larger share is to skip the pipeline: read the sources with `bash` and write the final tables by
@@ -59,18 +58,16 @@ reducing it, so cheating plus good work never outscores honest work.
 
 | Shortcut | Handling |
 | --- | --- |
-| Submit immediately | Scores 0 (tested) |
 | Start the pipeline in the background, submit at once | Background processes killed before grading (tested) |
 | Raw tables with the right row counts, garbage content | Capped at the stage 1 share (tested) |
 | Load by hand, bypassing Airbyte | `require_airbyte_provenance`: metadata columns on every raw table, plus a succeeded sync job into this rollout's database, audited through the Airbyte API |
-| Skip EL, write the final tables from the sources | Gated, scores 0 |
 | Read the ground truth | Never enters the sandbox |
 | Write into another rollout's namespace | Per-rollout database and scoped credential |
 
-Two gaps are open. Nothing verifies the models came from `dbt run`, so loading correctly and then
+Two gaps remain. Nothing verifies the models came from `dbt run`, so loading correctly and then
 hand-writing the final tables still scores 1.0; requiring `target/run_results.json` to account for
-every model would close it. And `_airbyte_raw_id` can be forged, so the binding check is the
-sync-job audit, with the column check as a cheap precondition.
+every model would close it. And `_airbyte_raw_id` can be forged, which is why the binding check is
+the sync-job audit and not the column check.
 
 ## Training efficiency
 
@@ -82,8 +79,12 @@ which a better policy does not speed up.
 * **Transformation-only episodes.** The first rollout to pass stage 1 saves a post-EL snapshot; with
   `transform_only`, later episodes clone it (zero-copy on Snowflake) and start at stage 2. This
   removes the Airbyte wait entirely and concentrates gradient where most of the reward is.
-* **Shared Terraform plugin cache**, so `terraform init` does not re-download the provider per rollout.
-* **Caps:** 60 turns, 4096 generated tokens per turn, 32k trajectory tokens, 600s per command.
 * **Group composition.** Partial credit makes zero-variance groups rare;
   `remove_constant_reward_groups` drops them, and the asynchronous off-policy path keeps sampling
   while an optimizer step runs, which matters when one rollout takes minutes.
+
+What remains is not compute, so it can only be deleted or hidden. The two largest pieces: the
+post-EL snapshot is built by the first rollout to pass stage 1, and could instead be baked once per
+task offline, so episodes skip the load from step 0 rather than after the first success; and
+teardown is awaited although the reward no longer depends on it, so it belongs in a background
+reaper.

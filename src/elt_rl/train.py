@@ -54,7 +54,9 @@ class CLIConfig:
     column_credit: float = 0.5
 
     # Model / sampling
-    model_name: str = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    # Must be a model Tinker currently serves: tinker-docs.thinkingmachines.ai/tinker/models.json
+    # Qwen/Qwen3-8B and openai/gpt-oss-20b are cheaper but cap the context at 32K.
+    model_name: str = "Qwen/Qwen3.6-35B-A3B"
     renderer_name: str | None = None
     lora_rank: int = 32
     max_tokens: int = 4096  # per turn

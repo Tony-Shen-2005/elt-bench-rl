@@ -110,6 +110,7 @@ Optional credentials used only by the grader's provenance audit:
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
+| `model_name` | `Qwen/Qwen3.6-35B-A3B` | Any model Tinker serves ([models.json](https://tinker-docs.thinkingmachines.ai/tinker/models.json)). `Qwen/Qwen3-8B` and `openai/gpt-oss-20b` are cheaper, with a 32K context |
 | `reward_mode` | `staged` | `staged`, `model_fraction`, or `binary` |
 | `el_weight` | `0.2` | Share of the reward carried by extraction and loading |
 | `column_credit` | `0.5` | Partial credit inside a data model, by matching columns |

@@ -14,8 +14,8 @@ The environment is warehouse-agnostic. Everything warehouse-specific sits behind
 (local, credential-free) or Snowflake (the official benchmark setup). Adding a warehouse is
 one subclass; nothing else changes.
 
-See [docs/DESIGN.md](docs/DESIGN.md) for the design: reward shaping, isolation, reward
-hacking, and training efficiency.
+See [docs/DESIGN.md](docs/DESIGN.md) for the design: reward shaping, reward hacking, and
+training efficiency.
 
 ## Install
 

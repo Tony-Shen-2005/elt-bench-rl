@@ -31,6 +31,9 @@ T = mean of s over the models of the task
 `s` interpolates between the official all-or-nothing rule (`column_credit = 0`) and pure linear
 credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
+The benchmark's own verdict on a task is one bit. `staged` exists to make that bit trainable
+without changing what it means, and four decisions follow from that.
+
 **Dense, because GRPO needs within-group variance.** The advantage is measured against the group
 mean, so a group scoring all zeros contributes no gradient. Under `binary` that is most early
 groups, and an episode that missed one column type looks like one that never ran `terraform init`.
@@ -47,26 +50,6 @@ hand. Gated, the transformation reward opens only once the data is really loaded
 **Full credit is defined by the official evaluator, not by us.** A test asserts the comparator agrees
 with `eva_stage2.py` table by table, and `task_success` is logged every step. The shaping changes
 where the gradient comes from, never what counts as solved.
-
-## Environment
-
-* **Everything warehouse-specific behind `Destination`:** namespace provisioning, the agent's
-  connection block, SQL execution, row counts, identifier case, eval-SQL rewriting. Snowflake and
-  DuckDB are implemented; a new warehouse is one subclass and nothing else changes. DuckDB is what
-  makes a credential-free integration test possible.
-* **One database and one container per rollout.** A group runs concurrently against shared
-  infrastructure, so isolation is what keeps rollouts independent samples; eval SQL is rewritten
-  into the rollout's own namespace.
-* **A task is split in two at the type level.** Agent-visible files go into the workspace;
-  expected row counts, eval SQL, sort keys and ground truth stay on the host and cannot be reached
-  from the container.
-* **Two credentials.** Admin provisions and grades and is never shown. The agent credential is the
-  benchmark's `AIRBYTE_USER`, also used by the `sql` tool, so the agent can inspect exactly what
-  its pipeline can reach.
-* **Errors are observations.** Command failures, SQL errors and malformed tool calls come back as
-  tool results. Ending a forty-turn episode over a parse error discards everything learned in it.
-* **Background processes are killed before grading, and resources are destroyed after.** Otherwise
-  a rollout can keep writing after submission, and Airbyte accumulates one resource set per episode.
 
 ## Reward hacking
 
@@ -94,7 +77,8 @@ sync-job audit, with the column check as a cheap precondition.
 The cost is wall-clock time, not tokens: an episode waits on `terraform apply` and on sync jobs,
 which a better policy does not speed up.
 
-* **Concurrency** is what per-rollout isolation buys: a group costs its slowest member, not the sum.
+* **Concurrency.** Each rollout gets its own database and container, so a group of rollouts costs
+  its slowest member rather than the sum, and the rollouts stay independent samples.
 * **Transformation-only episodes.** The first rollout to pass stage 1 saves a post-EL snapshot; with
   `transform_only`, later episodes clone it (zero-copy on Snowflake) and start at stage 2. This
   removes the Airbyte wait entirely and concentrates gradient where most of the reward is.

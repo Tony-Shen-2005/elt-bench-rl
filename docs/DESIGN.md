@@ -9,32 +9,51 @@ are not independent samples, and a reset costs minutes rather than nothing.
 
 ## Reward
 
+Grading turns the warehouse into a report: for each raw table, rows found against rows expected;
+for each model, which ground-truth columns match after key-aware sorting. Three functions turn
+that report into a scalar.
+
 ```
 binary          1 iff stage 1 passes and every model matches
 model_fraction  fraction of models matching, gated on stage 1
 staged          el_weight * stage1_fraction + (1 - el_weight) * stage1_pass * T   (default)
 ```
 
-`T` is the mean model score: 1.0 for an exact match, otherwise `column_credit` (0.5) times the
-fraction of matching columns. `el_weight` is 0.2.
+`T` is the mean per-model score. Writing `f` for the fraction of ground-truth columns a model
+matches, and scoring 0 unless its row count is right, that score is
+
+```
+column_credit * f + (1 - column_credit) * 1[f = 1]
+```
+
+an interpolation between the official all-or-nothing rule (`column_credit = 0`) and pure linear
+credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
 **Dense, because GRPO needs within-group variance.** Under `binary` nearly every early rollout
-scores 0, the advantage is zero across the group, and an episode that failed on one column type
-is indistinguishable from one that never ran `terraform init`. `staged` keeps every point
-execution derived while making partial progress visible.
+scores 0, the advantage is zero across the group, and an episode that failed on one column type is
+indistinguishable from one that never ran `terraform init`. Every point in `staged` is still
+execution derived.
 
-**Stage 2 gated on stage 1.** Ungated, the cheapest path to the transformation share is to skip
-the pipeline entirely: the agent can read the sources through `bash` and write the final tables
-directly. The gate also imposes a curriculum, since the larger share only opens once the data is
-really loaded.
+**A premium on finishing.** A model with five of six columns right is not 83% of a pipeline, it is
+unusable, and the benchmark scores it 0. Under pure linear credit the last column is worth no more
+than the first, so the best strategy is to farm the cheap columns of every model and finish none.
+The completion term keeps one finished model ahead of two half-finished ones.
+
+**Stage 2 gated on stage 1.** Ungated, the cheapest path to the transformation share is to skip the
+pipeline: the agent can read the sources through `bash` and write the final tables directly. The
+gate also imposes a curriculum, since the larger share only opens once the data is really loaded.
 
 **Outcome, not process.** Per-turn rewards would have to be read out of tool output, which the
 policy writes and can therefore shape. Warehouse state at submission is the one signal the policy
 can only move by doing the work.
 
-**Graded so that 1.0 means the official evaluator passes.** The comparator reproduces
-`check_corretness` and `sort_by_keys`, and a test asserts agreement with `eva_stage2.py` table by
-table, so the reward cannot drift from the benchmark it claims to optimize.
+**Full credit means the official evaluator passes.** The comparator reproduces `check_corretness`
+and `sort_by_keys`, and a test asserts agreement with `eva_stage2.py` table by table, so the reward
+cannot drift from the benchmark it claims to optimize. `task_success` and `srdt_fraction` are logged
+every step, so a run trained on `staged` is still reported in the benchmark's own terms.
+
+**Integrity violations zero the reward** rather than reduce it, so cheating plus good work never
+outscores honest work.
 
 ## Environment
 

@@ -19,14 +19,16 @@ model_fraction  fraction of models matching, gated on stage 1
 staged          el_weight * stage1_fraction + (1 - el_weight) * stage1_pass * T   (default)
 ```
 
-`T` is the mean per-model score. Writing `f` for the fraction of ground-truth columns a model
-matches, and scoring 0 unless its row count is right, that score is
+A task asks for several data models. Each one is scored on its own, and `T` is the mean of those
+scores. Writing `f` for the fraction of a model's ground-truth columns that match after key-aware
+sorting, that model scores
 
 ```
-column_credit * f + (1 - column_credit) * 1[f = 1]
+s = column_credit * f + (1 - column_credit) * 1[f = 1]      s = 0 if the row count is wrong
+T = mean of s over the models of the task
 ```
 
-an interpolation between the official all-or-nothing rule (`column_credit = 0`) and pure linear
+`s` interpolates between the official all-or-nothing rule (`column_credit = 0`) and pure linear
 credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
 **Dense, because GRPO needs within-group variance.** The advantage is measured against the group

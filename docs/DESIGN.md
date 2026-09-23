@@ -30,26 +30,21 @@ an interpolation between the official all-or-nothing rule (`column_credit = 0`) 
 credit (`column_credit = 1`). Defaults are `el_weight` 0.2 and `column_credit` 0.5.
 
 **Dense, because GRPO needs within-group variance.** The advantage is measured against the group
-mean, so a group whose rollouts all score the same contributes no gradient. Under `binary` that is
-most early groups, and worse, an episode that loaded every source and missed one column type is
-indistinguishable from one that never ran `terraform init`. `staged` separates them while keeping
-every point it hands out derived from warehouse state.
+mean, so a group scoring all zeros contributes no gradient. Under `binary` that is most early
+groups, and an episode that missed one column type looks like one that never ran `terraform init`.
 
-**The completion term is what keeps partial credit honest.** A data model with five of six columns
-right is not 83% of a pipeline, it is unusable, which is why the benchmark scores it 0. But under
-all-or-nothing credit there is no signal between "nothing" and "done". `column_credit` interpolates
-between the two: the linear part pays for progress inside a model, the `1[f = 1]` part pays a bonus
-only for a finished one. Farming the easy columns of every model then never beats finishing one.
+**The completion term is what keeps partial credit honest.** All-or-nothing credit gives no signal
+between nothing and done; pure linear credit makes farming the easy columns of every model beat
+finishing one. `column_credit` interpolates, paying for progress but reserving a bonus for a model
+that is actually finished.
 
 **Gating stage 2 on stage 1 is both a defence and a curriculum.** Ungated, the cheapest route to the
-larger share of the reward is to skip the pipeline entirely: read the sources with `bash` and write
-the final tables by hand. The gate removes that route, and as a side effect orders the task, since
-the transformation reward only becomes reachable once the data is really loaded.
+larger share is to skip the pipeline: read the sources with `bash` and write the final tables by
+hand. Gated, the transformation reward opens only once the data is really loaded.
 
-**Full credit is defined by the official evaluator, not by us.** The comparator reproduces
-`check_corretness` and `sort_by_keys`, and a test asserts it agrees with `eva_stage2.py` table by
-table; `task_success` and `srdt_fraction` are logged every step. The shaping changes where the
-gradient comes from, never what counts as solved.
+**Full credit is defined by the official evaluator, not by us.** A test asserts the comparator agrees
+with `eva_stage2.py` table by table, and `task_success` is logged every step. The shaping changes
+where the gradient comes from, never what counts as solved.
 
 ## Environment
 

@@ -65,9 +65,8 @@ reducing it, so cheating plus good work never outscores honest work.
 | Write into another rollout's namespace | Per-rollout database and scoped credential |
 
 Two gaps remain. Nothing verifies the models came from `dbt run`, so loading correctly and then
-hand-writing the final tables still scores 1.0; requiring `target/run_results.json` to account for
-every model would close it. And `_airbyte_raw_id` can be forged, which is why the binding check is
-the sync-job audit and not the column check.
+hand-writing the final tables still scores 1.0. And `_airbyte_raw_id` can be forged, which is why
+the binding check is the sync-job audit and not the column check.
 
 ## Training efficiency
 
@@ -82,9 +81,3 @@ which a better policy does not speed up.
 * **Group composition.** Partial credit makes zero-variance groups rare;
   `remove_constant_reward_groups` drops them, and the asynchronous off-policy path keeps sampling
   while an optimizer step runs, which matters when one rollout takes minutes.
-
-What remains is not compute, so it can only be deleted or hidden. The two largest pieces: the
-post-EL snapshot is built by the first rollout to pass stage 1, and could instead be baked once per
-task offline, so episodes skip the load from step 0 rather than after the first success; and
-teardown is awaited although the reward no longer depends on it, so it belongs in a background
-reaper.
